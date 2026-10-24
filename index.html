@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TopstepX — Gestionnaire de Risque (20% DMLL)</title>
+<title>TopstepX — Gestionnaire de Risque Fusionné</title>
 <style>
   :root{
     --bg:#0d1117; --card:#161b22; --border:#30363d;
@@ -13,13 +13,17 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); padding:16px; max-width:800px; margin:0 auto;}
   h1{font-size:1.4rem; margin-bottom:4px;}
+  h3{font-size:.95rem;}
   .subtitle{color:var(--muted); font-size:.9rem; margin-bottom:16px;}
   .card{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:14px;}
   label{display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px;}
   input[type=number]{width:100%; background:#0d1117; border:1px solid var(--border); color:var(--text); padding:10px; border-radius:8px; font-size:1.1rem;}
+  input:focus{outline:none; border-color:var(--blue);}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
   button{width:100%; background:var(--blue); color:#fff; border:none; padding:12px; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; margin-top:10px;}
   button.secondary{background:#21262d; color:var(--text);}
+  button.danger{background:#3d1618; color:#f85149;}
   .kpi{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
   .kpi .box{background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:12px; text-align:center;}
   .kpi .val{font-size:1.3rem; font-weight:700;}
@@ -28,52 +32,95 @@
   table{width:100%; border-collapse:collapse; margin-top:10px; font-size:.9rem;}
   th,td{padding:8px; text-align:left; border-bottom:1px solid var(--border);}
   th{color:var(--muted); font-weight:600; font-size:.78rem; text-transform:uppercase;}
-  .dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px;}
   details{margin-top:8px;}
   summary{cursor:pointer; color:var(--blue); font-size:.9rem;}
   .glossary p{font-size:.88rem; margin-bottom:10px; line-height:1.5;}
   .glossary b{color:var(--blue);}
   .warning{border-left:3px solid var(--red); padding:8px 12px; background:rgba(248,81,73,.08); border-radius:0 8px 8px 0; font-size:.85rem; margin-top:10px;}
   .ok{border-left:3px solid var(--green); padding:8px 12px; background:rgba(63,185,80,.08); border-radius:0 8px 8px 0; font-size:.85rem; margin-top:10px;}
+  .formula{font-size:.72rem; color:#6e7681; margin-top:2px; font-style:italic;}
   .saveNote{font-size:.75rem; color:var(--muted); text-align:center; margin-top:6px;}
-  @media(max-width:500px){ .grid2,.kpi{grid-template-columns:1fr;} }
+  .tabs{display:flex; gap:8px; margin-bottom:14px;}
+  .tabs button{margin-top:0; padding:10px;}
+  .tabs .tab.active{background:var(--blue); color:#fff;}
+  .tabs .tab{background:#21262d; color:var(--muted);}
+  #logList{font-size:.85rem; margin-top:8px;}
+  #logList div{padding:6px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;}
+  @media(max-width:500px){ .grid2,.grid3,.kpi{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
 
 <h1>🛡️ Gestionnaire de Risque TopstepX</h1>
-<p class="subtitle">Méthode des paliers : risquer 20% du DMLL par trade, recalculé après chaque résultat.</p>
+<p class="subtitle">Méthode des paliers : risquer 20% du DMLL par trade, recalculé après chaque résultat — + calculateur BAL / DMLL / MLL intégré.</p>
 
-<!-- ========== SAISIE ========== -->
-<div class="card">
-  <label for="dmll">Votre DMLL actuel (perte max totale restante, depuis la barre TopstepX)</label>
-  <input type="number" id="dmll" step="0.01" min="0" placeholder="Ex : 1479.72" >
-  <div class="grid2" style="margin-top:10px">
-    <div>
-      <label for="dll">Limite du jour / DLL (optionnel)</label>
-      <input type="number" id="dll" step="0.01" min="0" placeholder="Ex : 300">
-    </div>
-    <div>
-      <label for="pct">% de risque par trade</label>
-      <input type="number" id="pct" step="1" min="1" max="50" value="20">
-    </div>
-  </div>
-  <button onclick="calculate()">Calculer mes paliers</button>
-  <button class="secondary" onclick="nextTrade()">✅ Enregistrer le résultat du dernier trade</button>
-  <p class="saveNote">💾 Vos données sont sauvegardées automatiquement dans ce navigateur.</p>
+<div class="tabs">
+  <button class="tab active" onclick="showTab('paliers',this)">🎯 Paliers 20%</button>
+  <button class="tab" onclick="showTab('calc',this)">⚖️ Calculateur BAL/DMLL/MLL</button>
 </div>
 
-<!-- ========== RÉSULTATS ========== -->
-<div class="card" id="resultCard" style="display:none">
-  <div class="kpi">
-    <div class="box"><div class="val blue" id="kpiRisk">—</div><div class="lbl">Risque max par trade</div></div>
-    <div class="box"><div class="val orange" id="kpiStop">—</div><div class="lbl">Stops de perte consécutifs</div></div>
+<!-- ========== ONGLET 1 : PALIERS 20% ========== -->
+<div id="tab-paliers">
+  <div class="card">
+    <label for="dmll">Votre DMLL actuel (perte max totale restante, depuis la barre TopstepX)</label>
+    <input type="number" id="dmll" step="0.01" min="0" placeholder="Ex : 1479.72">
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label for="dll">Limite du jour / DLL (optionnel)</label>
+        <input type="number" id="dll" step="0.01" min="0" placeholder="Ex : 300">
+      </div>
+      <div>
+        <label for="pct">% de risque par trade</label>
+        <input type="number" id="pct" step="1" min="1" max="50" value="20">
+      </div>
+    </div>
+    <button onclick="calculate()">Calculer mes paliers</button>
+    <button class="secondary" onclick="nextTrade()">✅ Enregistrer le résultat du dernier trade</button>
+    <p class="saveNote">💾 Vos données sont sauvegardées automatiquement dans ce navigateur.</p>
   </div>
-  <h3 style="margin-top:14px; font-size:.95rem">📉 Séquence si vous PERDEZ (le risque diminue — mode défense)</h3>
-  <table id="lossTable"><thead><tr><th># perte</th><th>DMLL restant</th><th>Risque du trade suivant</th></tr></thead><tbody></tbody></table>
-  <h3 style="margin-top:14px; font-size:.95rem">📈 Séquence si vous GAGNEZ (le risque remonte — mode attaque)</h3>
-  <table id="winTable"><thead><tr><th># gain</th><th>DMLL restant</th><th>Risque du trade suivant</th></tr></thead><tbody></tbody></table>
-  <div id="statusBox"></div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <div class="kpi">
+      <div class="box"><div class="val blue" id="kpiRisk">—</div><div class="lbl">Risque max par trade</div></div>
+      <div class="box"><div class="val orange" id="kpiStop">—</div><div class="lbl">Après 8 pertes d'affilée</div></div>
+    </div>
+    <h3 style="margin-top:14px">📉 Séquence si vous PERDEZ (le risque diminue — mode défense)</h3>
+    <table id="lossTable"><thead><tr><th># perte</th><th>DMLL restant</th><th>Risque du trade suivant</th></tr></thead><tbody></tbody></table>
+    <h3 style="margin-top:14px">📈 Séquence si vous GAGNEZ (le risque remonte — mode attaque)</h3>
+    <table id="winTable"><thead><tr><th># gain</th><th>DMLL restant</th><th>Risque du trade suivant</th></tr></thead><tbody></tbody></table>
+    <div id="statusBox"></div>
+    <details style="margin-top:12px">
+      <summary>🕓 Historique des trades enregistrés</summary>
+      <div id="logList"></div>
+      <button class="danger" onclick="resetAll()">🗑️ Réinitialiser tout</button>
+    </details>
+  </div>
+</div>
+
+<!-- ========== ONGLET 2 : CALCULATEUR ========== -->
+<div id="tab-calc" style="display:none">
+  <div class="card">
+    <label>BAL — Balance du compte (Net Equity + P&L non réalisé) $</label>
+    <input type="number" id="bal" placeholder="Ex : 25000" oninput="calcSimple()">
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label>% de perte quotidienne max (DMLL)</label>
+        <input type="number" id="pctDay" value="4" step="0.1" oninput="calcSimple()">
+      </div>
+      <div>
+        <label>% de perte maximale (MLL)</label>
+        <input type="number" id="pctMax" value="8" step="0.1" oninput="calcSimple()">
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="box"><div class="val blue" id="rBal2">—</div><div class="lbl">BAL — Account Balance</div></div>
+      <div class="box"><div class="val orange" id="rDmll">—</div><div class="lbl">DMLL — Daily Max Loss Limit</div><div class="formula">BAL × % quotidien</div></div>
+      <div class="box"><div class="val red" id="rMll">—</div><div class="lbl">MLL — Maximum Loss Limit</div><div class="formula">BAL × % max</div></div>
+      <div class="box"><div class="val green" id="rLink">—</div><div class="lbl">→ Risque/trade (20% du DMLL)</div></div>
+    </div>
+    <div class="ok" id="calcAlert" style="display:none"></div>
+    <button class="secondary" onclick="sendToPaliers()">➡️ Envoyer le DMLL vers l'onglet Paliers 20%</button>
+  </div>
 </div>
 
 <!-- ========== GLOSSAIRE ========== -->
@@ -100,6 +147,7 @@
 
 <script>
 let state = { dmll: null, initial: null, log: [], pct: 20, dll: null };
+const fmt = n => n.toLocaleString('fr-US', {style:'currency', currency:'USD'});
 
 function load(){
   try{
@@ -108,6 +156,13 @@ function load(){
   }catch(e){}
 }
 function save(){ localStorage.setItem('tsxrisk', JSON.stringify(state)); }
+
+function showTab(id, btn){
+  document.getElementById('tab-paliers').style.display = id==='paliers' ? 'block':'none';
+  document.getElementById('tab-calc').style.display = id==='calc' ? 'block':'none';
+  document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
 
 function calculate(){
   const dmll = parseFloat(document.getElementById('dmll').value);
@@ -119,41 +174,49 @@ function calculate(){
 }
 
 function render(){
-  const card = document.getElementById('resultCard');
-  card.style.display = 'block';
+  document.getElementById('resultCard').style.display = 'block';
   const pct = state.pct/100;
   let dmll = state.dmll;
   const risk = Math.min(dmll*pct, (state.dll||Infinity));
-
-  document.getElementById('kpiRisk').textContent = '$'+risk.toFixed(2);
+  document.getElementById('kpiRisk').textContent = fmt(risk);
 
   // Loss sequence
   let d = dmll, rowsL = '';
-  const n = 8;
-  for(let i=1;i<=n;i++){
+  for(let i=1;i<=8;i++){
     const r = Math.min(d*pct, (state.dll||Infinity));
     d = Math.max(0, d - r);
-    rowsL += `<tr><td>${i}</td><td class="red">$${d.toFixed(2)}</td><td class="orange">$${r.toFixed(2)}</td></tr>`;
+    rowsL += `<tr><td>${i}</td><td class="red">${fmt(d)}</td><td class="orange">${fmt(r)}</td></tr>`;
   }
   document.querySelector('#lossTable tbody').innerHTML = rowsL;
-  document.getElementById('kpiStop').textContent = n + ' pertes → $' + d.toFixed(2);
+  document.getElementById('kpiStop').textContent = fmt(d);
 
   // Win sequence
   let w = dmll, rowsW = '';
   for(let i=1;i<=5;i++){
     const r = Math.min(w*pct, (state.dll||Infinity));
     w = w + r;
-    rowsW += `<tr><td>${i}</td><td class="green">$${w.toFixed(2)}</td><td class="blue">$${r.toFixed(2)}</td></tr>`;
+    rowsW += `<tr><td>${i}</td><td class="green">${fmt(w)}</td><td class="blue">${fmt(r)}</td></tr>`;
   }
   document.querySelector('#winTable tbody').innerHTML = rowsW;
 
   // Status
   const sb = document.getElementById('statusBox');
-  if(dmll * pct > (state.dll||Infinity)){
-    sb.innerHTML = `<div class="warning">⚠️ Votre DLL du jour ($${state.dll.toFixed(2)}) est plus petite que 20% du DMLL. Votre risque réel par trade est donc limité à <b>$${risk.toFixed(2)}</b> par la limite journalière.</div>`;
+  if(state.dll && dmll * pct > state.dll){
+    sb.innerHTML = `<div class="warning">⚠️ Votre DLL du jour (${fmt(state.dll)}) est plus petite que ${state.pct}% du DMLL. Votre risque réel par trade est donc limité à <b>${fmt(risk)}</b> par la limite journalière.</div>`;
   } else {
-    sb.innerHTML = `<div class="ok">✅ Vous risquez <b>20% de votre DMLL</b> par trade, soit <b>$${risk.toFixed(2)}</b>. Après 8 pertes consécutives, il vous resterait encore <b>$${d.toFixed(2)}</b> de marge — le compte est protégé.</div>`;
+    sb.innerHTML = `<div class="ok">✅ Vous risquez <b>${state.pct}% de votre DMLL</b> par trade, soit <b>${fmt(risk)}</b>. Après 8 pertes consécutives, il vous resterait encore <b>${fmt(d)}</b> de marge — le compte est protégé.</div>`;
   }
+  renderLog();
+}
+
+function renderLog(){
+  const el = document.getElementById('logList');
+  if(!state.log.length){ el.innerHTML = '<p style="color:var(--muted); font-size:.8rem">Aucun trade enregistré.</p>'; return; }
+  el.innerHTML = state.log.slice().reverse().map(e => {
+    const dt = new Date(e.date);
+    const cls = e.val >= 0 ? 'green' : 'red';
+    return `<div><span>📅 ${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span><span class="${cls}">${e.val>=0?'+':''}${fmt(e.val)} → DMLL ${fmt(e.dmll)}</span></div>`;
+  }).join('');
 }
 
 function nextTrade(){
@@ -171,6 +234,41 @@ function nextTrade(){
   state.log.push({date:new Date().toISOString(), val, dmll: state.dmll});
   document.getElementById('dmll').value = state.dmll.toFixed(2);
   save(); render();
+}
+
+function resetAll(){
+  if(!confirm('Effacer le DMLL actuel et tout l\'historique ?')) return;
+  state = { dmll: null, initial: null, log: [], pct: 20, dll: null };
+  localStorage.removeItem('tsxrisk');
+  document.getElementById('dmll').value = '';
+  document.getElementById('dll').value = '';
+  document.getElementById('resultCard').style.display = 'none';
+}
+
+// ===== Onglet calculateur BAL / DMLL / MLL =====
+function calcSimple(){
+  const bal = parseFloat(document.getElementById('bal').value) || 0;
+  const pd = parseFloat(document.getElementById('pctDay').value) || 0;
+  const pm = parseFloat(document.getElementById('pctMax').value) || 0;
+  const dmll = bal * pd / 100, mll = bal * pm / 100;
+  document.getElementById('rBal2').textContent = bal ? fmt(bal) : '—';
+  document.getElementById('rDmll').textContent = bal ? '−'+fmt(dmll) : '—';
+  document.getElementById('rMll').textContent = bal ? '−'+fmt(mll) : '—';
+  document.getElementById('rLink').textContent = bal ? fmt(dmll*0.2) : '—';
+  const a = document.getElementById('calcAlert');
+  if(!bal){ a.style.display='none'; return; }
+  a.style.display='block';
+  a.textContent = `✅ Perte quotidienne max : −${fmt(dmll)} | Perte maximale avant échec : −${fmt(mll)} | Risque conseillé par trade (20% du DMLL) : ${fmt(dmll*0.2)}`;
+}
+
+function sendToPaliers(){
+  const bal = parseFloat(document.getElementById('bal').value) || 0;
+  const pd = parseFloat(document.getElementById('pctDay').value) || 0;
+  if(!bal){ alert('Entrez d\'abord une BAL.'); return; }
+  document.getElementById('dmll').value = (bal*pd/100).toFixed(2);
+  showTab('paliers', document.querySelectorAll('.tabs .tab')[0]);
+  document.querySelectorAll('.tabs .tab')[0].classList.add('active');
+  calculate();
 }
 
 load();
